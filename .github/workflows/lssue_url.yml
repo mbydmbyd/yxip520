@@ -1,6 +1,9 @@
 name: 智能API内容获取
 
 on:
+  push:
+    branches:
+      - main     # 只有 push 到 main 分支才会触发
   schedule:
     # 每4小时运行一次
     - cron: '0 */4 * * *'
@@ -31,7 +34,6 @@ on:
 env:
   API_BASE_URL: "https://proxy-manager-ggeu.onrender.com/api/v1/subscribe"
   GITHUB_ISSUE_URL: "https://github.com/wzdnzd/aggregator/issues/91"
-  SAVE_HISTORY: "false"   # 设置为 "true" 可保存历史版本（带时间戳）
 
 jobs:
   fetch-content:
@@ -40,60 +42,62 @@ jobs:
       contents: write
       actions: read
       metadata: read
-
+    
     steps:
     - name: 检出代码
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
-
+        
     - name: 安装依赖
       run: |
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends curl jq
-
+        sudo apt-get install -y curl jq
+        
     - name: 爬取GitHub Issue获取最新配置
       id: scrape
       run: |
         echo "正在从GitHub Issue获取最新配置..."
-
+        
         ISSUE_CONTENT=$(curl -s -H "Accept: application/vnd.github.v3+json" \
           "https://api.github.com/repos/wzdnzd/aggregator/issues/91")
-
+        
         ISSUE_BODY=$(echo "$ISSUE_CONTENT" | jq -r '.body')
-
         echo "Issue内容获取成功"
-
-        # 提取反引号中的内容，过滤长度为12-32位的token
-        TOKEN=$(echo "$ISSUE_BODY" | grep -oP '`[a-zA-Z0-9]{12,32}`' | tr -d '`' | head -1)
-
+        
+        TOKEN=$(echo "$ISSUE_BODY" | grep -oP '统一为`\K[^`]+' || echo "")
+        if [ -z "$TOKEN" ]; then
+          TOKEN=$(echo "$ISSUE_BODY" | grep -oP 'token.*?`\K[a-zA-Z0-9]+' || echo "")
+        fi
+        if [ -z "$TOKEN" ]; then
+          TOKEN=$(echo "$ISSUE_BODY" | grep -oP '[a-z0-9]{12,16}' | head -1 || echo "l0b4i8i44u2kzlbh")
+        fi
         if [ -z "$TOKEN" ]; then
           TOKEN="l0b4i8i44u2kzlbh"
-          echo "⚠️ 未能提取token，使用默认值: $TOKEN"
+          echo "⚠️ 未能从Issue中提取token，使用默认值"
         else
           echo "✅ 成功提取token: $TOKEN"
         fi
-
+        
         TARGET="${{ github.event.inputs.target || 'clash' }}"
         LIST="${{ github.event.inputs.list || 'false' }}"
-
+        
         echo "token=$TOKEN" >> $GITHUB_OUTPUT
         echo "target=$TARGET" >> $GITHUB_OUTPUT
         echo "list=$LIST" >> $GITHUB_OUTPUT
-
         echo "使用参数: token=$TOKEN, target=$TARGET, list=$LIST"
-
         echo "$ISSUE_BODY" > issue_content.txt
-
+        
     - name: 构建API链接并获取内容
       id: fetch
       run: |
         FULL_URL="${{ env.API_BASE_URL }}?token=${{ steps.scrape.outputs.token }}&target=${{ steps.scrape.outputs.target }}&list=${{ steps.scrape.outputs.list }}"
         echo "🔗 API链接: $FULL_URL"
-
-        mkdir -p content logs
-
+        
+        mkdir -p content
+        mkdir -p logs
+        
         echo "=== API请求信息 ===" > logs/request_log.txt
         echo "时间: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> logs/request_log.txt
         echo "Token: ${{ steps.scrape.outputs.token }}" >> logs/request_log.txt
@@ -101,31 +105,25 @@ jobs:
         echo "List: ${{ steps.scrape.outputs.list }}" >> logs/request_log.txt
         echo "完整URL: $FULL_URL" >> logs/request_log.txt
         echo "" >> logs/request_log.txt
-
+        
         echo "正在请求API..."
-        RESPONSE=$(curl -s --retry 3 --retry-delay 5 \
-          -w "HTTPSTATUS:%{http_code}\nTIME:%{time_total}" "$FULL_URL")
-
+        RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code}\nTIME:%{time_total}" "$FULL_URL")
+        
         HTTP_CODE=$(echo "$RESPONSE" | grep "HTTPSTATUS:" | cut -d: -f2)
         TIME_TOTAL=$(echo "$RESPONSE" | grep "TIME:" | cut -d: -f2)
         CONTENT=$(echo "$RESPONSE" | sed '/HTTPSTATUS:/d' | sed '/TIME:/d')
-
+        
         echo "HTTP状态码: $HTTP_CODE"
         echo "请求耗时: ${TIME_TOTAL}秒"
-
+        
         echo "HTTP状态码: $HTTP_CODE" >> logs/request_log.txt
         echo "请求耗时: ${TIME_TOTAL}秒" >> logs/request_log.txt
         echo "响应长度: $(echo "$CONTENT" | wc -c)字节" >> logs/request_log.txt
-
+        
         if [ "$HTTP_CODE" -eq 200 ]; then
-          if [ "${{ env.SAVE_HISTORY }}" = "true" ]; then
-            FILENAME="content/${{ steps.scrape.outputs.target }}_$(date '+%Y%m%d%H%M').txt"
-          else
-            FILENAME="content/${{ steps.scrape.outputs.target }}_config.txt"
-          fi
-
+          FILENAME="content/${{ steps.scrape.outputs.target }}_config.txt"
           echo "$CONTENT" > "$FILENAME"
-
+          
           echo "" >> "$FILENAME"
           echo "# ==================== 获取信息 ====================" >> "$FILENAME"
           echo "# 更新时间: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> "$FILENAME"
@@ -136,14 +134,14 @@ jobs:
           echo "# GitHub Issue: ${{ env.GITHUB_ISSUE_URL }}" >> "$FILENAME"
           echo "# 请求耗时: ${TIME_TOTAL}秒" >> "$FILENAME"
           echo "# =================================================" >> "$FILENAME"
-
+          
           echo "✅ 内容获取成功，保存到: $FILENAME"
           echo "📊 文件大小: $(wc -c < "$FILENAME") 字节"
-
+          
           echo "filename=$FILENAME" >> $GITHUB_ENV
           echo "success=true" >> $GITHUB_ENV
           echo "file_size=$(wc -c < "$FILENAME")" >> $GITHUB_ENV
-
+          
           echo "✅ 请求成功" >> logs/request_log.txt
           echo "文件保存: $FILENAME" >> logs/request_log.txt
           echo "文件大小: $(wc -c < "$FILENAME") 字节" >> logs/request_log.txt
@@ -151,54 +149,55 @@ jobs:
           echo "❌ API请求失败，HTTP状态码: $HTTP_CODE"
           echo "响应内容: $CONTENT"
           echo "success=false" >> $GITHUB_ENV
-
           echo "❌ 请求失败" >> logs/request_log.txt
           echo "错误内容: $CONTENT" >> logs/request_log.txt
-
           exit 1
         fi
-
-    - name: 验证内容质量
+        
+    - name: 创建汇总报告
       if: env.success == 'true'
       run: |
-        FILE="${{ env.filename }}"
-        echo "🔍 验证内容质量..."
-
-        SIZE=$(wc -c < "$FILE")
-        if [ "$SIZE" -lt 100 ]; then
-          echo "⚠️ 警告: 文件大小过小 ($SIZE 字节)，可能获取失败"
-        else
-          echo "✅ 文件大小正常: $SIZE 字节"
-        fi
-
-        case "${{ steps.scrape.outputs.target }}" in
-          "clash")
-            if grep -qE "proxies:|proxy-groups:" "$FILE"; then
-              echo "✅ Clash配置格式验证通过"
-            else
-              echo "⚠️ Clash配置可能无效"
-            fi
-            ;;
-          "v2ray")
-            if grep -qE "outbounds|vmess://|vless://" "$FILE"; then
-              echo "✅ V2Ray配置格式验证通过"
-            else
-              echo "⚠️ V2Ray配置可能无效"
-            fi
-            ;;
-          *)
-            echo "ℹ️ 跳过格式验证（格式: ${{ steps.scrape.outputs.target }}）"
-            ;;
-        esac
-
+        SUMMARY_FILE="api_summary.md"
+        cat > "$SUMMARY_FILE" << 'EOF'
+        # API内容获取汇总报告
+        
+        ## 基本信息
+        - **更新时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')
+        - **Token**: ${{ steps.scrape.outputs.token }}
+        - **目标格式**: ${{ steps.scrape.outputs.target }}
+        - **列表模式**: ${{ steps.scrape.outputs.list }}
+        - **文件大小**: ${{ env.file_size }} 字节
+        
+        ## API信息
+        - **基础URL**: ${{ env.API_BASE_URL }}
+        - **GitHub Issue**: ${{ env.GITHUB_ISSUE_URL }}
+        - **生成文件**: ${{ env.filename }}
+        
+        ## 内容预览
+        \`\`\`
+        $(head -20 "${{ env.filename }}" | sed 's/^//')
+        ...
+        \`\`\`
+        
+        ## 使用说明
+        1. 配置文件已保存到 `${{ env.filename }}`
+        2. Token会自动从GitHub Issue中获取最新值
+        3. 每4小时自动更新一次
+        4. 支持手动触发更新
+        5. push 到 main 分支也会触发更新
+        
+        ---
+        *由GitHub Actions自动生成*
+        EOF
+        echo "📋 汇总报告已生成: $SUMMARY_FILE"
+        
     - name: 提交更改
       if: env.success == 'true'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Actions Bot"
-
-        git add content/ logs/ issue_content.txt
-
+        
+        git add content/ logs/ api_summary.md issue_content.txt
         if git diff --staged --quiet; then
           echo "📝 没有内容更改，跳过提交"
         else
@@ -208,7 +207,7 @@ jobs:
           git push origin HEAD:${{ github.ref_name }}
           echo "✅ 内容已更新并推送到仓库"
         fi
-
+        
     - name: 输出最终结果
       if: always()
       run: |
@@ -219,6 +218,7 @@ jobs:
           echo "📊 文件大小: ${{ env.file_size }} 字节"
           echo "🔑 使用Token: ${{ steps.scrape.outputs.token }}"
           echo "🎯 目标格式: ${{ steps.scrape.outputs.target }}"
+          echo "📋 汇总报告: api_summary.md"
           echo "📝 请求日志: logs/request_log.txt"
         else
           echo "❌ 任务执行失败"
