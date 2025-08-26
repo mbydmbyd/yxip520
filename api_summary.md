@@ -3,23 +3,23 @@
 ## 基本信息
 - **更新时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')
 - **Token**: l0b4i8i44u2kzlbh
-- **目标格式**: v2ray
+- **目标格式**: clash
 - **列表模式**: false
-- **文件大小**: 382 字节
+- **文件大小**: 574555 字节
 
 ## API信息
 - **基础URL**: https://proxy-manager-ggeu.onrender.com/api/v1/subscribe
 - **GitHub Issue**: https://github.com/wzdnzd/aggregator/issues/91
-- **生成文件**: content/v2ray_config.txt
+- **生成文件**: content/clash_config.txt
 
 ## 内容预览
 \`\`\`
-$(head -20 "content/v2ray_config.txt" | sed 's/^//')
+$(head -20 "content/clash_config.txt" | sed 's/^//')
 ...
 \`\`\`
 
 ## 使用说明
-1. 配置文件已保存到 `content/v2ray_config.txt`
+1. 配置文件已保存到 `content/clash_config.txt`
 2. Token会自动从GitHub Issue中获取最新值
 3. 每4小时自动更新一次
 4. 支持手动触发更新
