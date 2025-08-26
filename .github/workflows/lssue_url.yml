@@ -35,12 +35,17 @@ env:
 jobs:
   fetch-content:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      metadata: read
     
     steps:
     - name: 检出代码
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
         
     - name: 安装依赖
       run: |
@@ -267,7 +272,11 @@ jobs:
         else
           COMMIT_MSG="🤖 自动更新API内容 (${{ steps.scrape.outputs.target }}) - $(date '+%Y-%m-%d %H:%M:%S')"
           git commit -m "$COMMIT_MSG"
-          git push
+          
+          # 使用 GITHUB_TOKEN 推送，并设置正确的远程URL
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git push origin HEAD:${{ github.ref_name }}
+          
           echo "✅ 内容已更新并推送到仓库"
           echo "📁 文件位置: ${{ env.filename }}"
           echo "📋 汇总报告: api_summary.md"
