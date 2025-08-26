@@ -187,7 +187,6 @@ jobs:
 # API内容获取汇总报告
 
 ## 基本信息
-- **更新时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')
 - **Token**: ${{ steps.scrape.outputs.token }}
 - **目标格式**: ${{ steps.scrape.outputs.target }}
 - **列表模式**: ${{ steps.scrape.outputs.list }}
