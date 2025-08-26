@@ -185,21 +185,6 @@ jobs:
         
         cat > "$SUMMARY_FILE" << EOF
 # API内容获取汇总报告
-
-## 基本信息
-- **Token**: ${{ steps.scrape.outputs.token }}
-- **目标格式**: ${{ steps.scrape.outputs.target }}
-- **列表模式**: ${{ steps.scrape.outputs.list }}
-- **文件大小**: ${{ env.file_size }} 字节
-
-## API信息
-- **基础URL**: ${{ env.API_BASE_URL }}
-- **GitHub Issue**: ${{ env.GITHUB_ISSUE_URL }}
-- **生成文件**: ${{ env.filename }}
-
-## 内容预览
-\`\`\`
-$(head -20 "${{ env.filename }}" | sed 's/^//')
 ...
 \`\`\`
 
