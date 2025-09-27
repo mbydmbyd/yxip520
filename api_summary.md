@@ -5,7 +5,7 @@
 - **Token**: x1l35glkozrb5qz5
 - **目标格式**: clash
 - **列表模式**: false
-- **文件大小**: 599688 字节
+- **文件大小**: 604372 字节
 
 ## API信息
 - **基础URL**: https://proxy-manager-ggeu.onrender.com/api/v1/subscribe
