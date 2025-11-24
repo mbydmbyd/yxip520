@@ -5,7 +5,7 @@
 - **Token**: eb5v381wt80tmpiz
 - **目标格式**: clash
 - **列表模式**: false
-- **文件大小**: 599741 字节
+- **文件大小**: 619396 字节
 
 ## API信息
 - **基础URL**: https://proxy-manager-ggeu.onrender.com/api/v1/subscribe
