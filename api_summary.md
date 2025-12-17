@@ -2,10 +2,10 @@
 
 ## 基本信息
 - **更新时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')
-- **Token**: um0d1gj44yqo36k1
+- **Token**: 75kg8oxf4z16rwnf58mm
 - **目标格式**: clash
 - **列表模式**: false
-- **文件大小**: 557554 字节
+- **文件大小**: 628695 字节
 
 ## API信息
 - **基础URL**: https://proxy-manager-ggeu.onrender.com/api/v1/subscribe
